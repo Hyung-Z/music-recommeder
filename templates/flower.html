@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>감성 꽃 추천 챗봇</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-slate-900 text-white antialiased">
+    <div class="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-slate-900 to-rose-900/30">
+        <nav class="absolute top-4 right-4 flex gap-4">
+            <a href="/" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold py-2 px-4 rounded-lg">음악 추천</a>
+            <a href="/flower" class="bg-rose-500 text-white font-semibold py-2 px-4 rounded-lg">꽃 추천</a>
+        </nav>
+        <main class="w-full max-w-2xl bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl shadow-2xl p-8 space-y-8">
+            <div class="text-center">
+                <h1 class="text-3xl font-bold text-slate-100">감성 꽃 추천 챗봇</h1>
+                <p class="text-slate-400">당신의 마음을 표현할 수 있는 꽃을 찾아드릴게요.</p>
+            </div>
+            <!-- (UI는 음악 추천과 동일) -->
+            <div class="space-y-4">
+                <textarea id="userInput" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-4" placeholder="예) 오랫동안 짝사랑한 사람에게 고백하고 싶어..."></textarea>
+                <div class="space-y-3 pt-2">
+                    <label class="text-sm font-medium text-slate-400">추천 가중치 조절</label>
+                    <div class="flex items-center gap-4">
+                        <span id="emotionLabel" class="font-mono text-sm text-indigo-300 w-20 text-center">감성 20%</span>
+                        <input id="weightSlider" type="range" min="0" max="100" value="20" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                        <span id="contextLabel" class="font-mono text-sm text-indigo-300 w-20 text-center">문맥 80%</span>
+                    </div>
+                </div>
+                <button onclick="getRecommendation()" id="recommendButton" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold py-3 px-4 rounded-lg">꽃 추천받기</button>
+            </div>
+            <div id="loadingIndicator" class="hidden">...</div>
+            <div id="results" class="space-y-6"></div>
+        </main>
+    </div>
+       <script>
+        const userInput = document.getElementById('userInput');
+        const recommendButton = document.getElementById('recommendButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultsDiv = document.getElementById('results');
+
+        // ★★★★★ 추가된 부분: 슬라이더 요소 가져오기 ★★★★★
+        const weightSlider = document.getElementById('weightSlider');
+        const emotionLabel = document.getElementById('emotionLabel');
+        const contextLabel = document.getElementById('contextLabel');
+
+        // ★★★★★ 수정된 부분: 슬라이더 라벨 및 그라데이션 업데이트 함수 ★★★★★
+        function updateSliderAppearance() {
+            // 이제 슬라이더의 value는 '감성'의 비율을 직접 나타냅니다.
+            const emotionWeightPercent = parseInt(weightSlider.value);
+            const contextWeightPercent = 100 - emotionWeightPercent;
+            
+            emotionLabel.textContent = `감성 ${emotionWeightPercent}%`;
+            contextLabel.textContent = `문맥 ${contextWeightPercent}%`;
+
+            emotionLabel.style.opacity = 0.5 + (emotionWeightPercent / 100) * 0.5;
+            contextLabel.style.opacity = 0.5 + (contextWeightPercent / 100) * 0.5;
+
+            const roseColor = '#fb7185'; // rose-400
+            const indigoColor = '#818cf8'; // indigo-400
+            
+            // 그라데이션의 경계선(emotionWeightPercent)이 이제 커서의 위치(value)와 일치합니다.
+            const gradient = `linear-gradient(to right, ${roseColor} ${emotionWeightPercent}%, ${indigoColor} ${emotionWeightPercent}%)`;
+            weightSlider.style.background = gradient;
+            
+            // 커서의 테두리 색상도 현재 위치의 색상과 일치시킵니다.
+            const thumbBorderColor = emotionWeightPercent >= 50 ? roseColor : indigoColor;
+            weightSlider.style.setProperty('--thumb-border-color', thumbBorderColor);
+        }
+
+        weightSlider.addEventListener('input', updateSliderAppearance);
+        document.addEventListener('DOMContentLoaded', updateSliderAppearance);
+        // ★★★★★ 수정 끝 ★★★★★
+
+        async function getRecommendation() {
+            const text = userInput.value.trim();
+            if (!text) { alert('기분이나 상황을 입력해주세요!'); return; }
+
+            // ★★★★★ 수정된 부분: 슬라이더에서 현재 가중치 값 가져오기 ★★★★★
+            const emotionWeight = weightSlider.value / 100;
+            const contextWeight = 1 - emotionWeight;
+            // ★★★★★ 수정 끝 ★★★★★
+
+            recommendButton.disabled = true;
+            recommendButton.textContent = '분석 중...';
+            resultsDiv.innerHTML = '';
+            loadingIndicator.classList.remove('hidden');
+
+            try {
+                // ★★★★★ 수정된 부분: API 요청에 가중치 값 포함시키기 ★★★★★
+                const response = await fetch('/recommend_flower', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        text: text,
+                        emotion_weight: emotionWeight,
+                        context_weight: contextWeight
+                    })
+                });
+                // ★★★★★ 수정 끝 ★★★★★
+
+                if (!response.ok) { throw new Error(`서버 오류: ${response.statusText}`); }
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="text-red-300 p-4 rounded-lg text-center"><p>오류가 발생했습니다. 잠시 후 다시 시도해주세요.</p></div>`;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                recommendButton.disabled = false;
+                recommendButton.textContent = '꽃 추천받기';
+            }
+        }
+        
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                getRecommendation();
+            }
+        });
+
+        function displayResults(data) {
+            if (data.error) {
+                resultsDiv.innerHTML = `<p class="text-center text-red-400">${data.error}</p>`;
+                return;
+            }
+            const emotionHtml = `<div class="text-center"><p class="text-slate-400 text-sm mb-1">분석된 감정</p><span class="bg-indigo-500/20 text-indigo-300 text-md font-medium px-4 py-1 rounded-full">${data.emotion}</span></div>`;
+            
+            let recommendationsHtml = '';
+            if (data.recommendations && data.recommendations.length > 0) {
+                recommendationsHtml = data.recommendations.map(flower => {
+                    return `
+                    <div class="bg-slate-700/50 p-4 rounded-lg border border-slate-600 flex items-center gap-4 transition hover:bg-slate-700">
+                        <div class="text-2xl font-bold text-slate-500">${flower.rank}</div>
+                        <a href="_" target="_blank" rel="noopener noreferrer" class="font-semibold text-slate-200 hover:text-indigo-400 transition-colors">${flower.name}</a>
+                        <div class="flex-grow">
+                            <p class="text-sm text-slate-400">${flower.meaning}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-500">유사도</p>
+                            <p class="font-mono text-indigo-400">${flower.score.toFixed(4)}</p>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                recommendationsHtml = `<p class="text-center text-slate-400">아쉽지만, 어울리는 꽃을 찾지 못했어요.</p>`;
+            }
+            resultsDiv.innerHTML = `${emotionHtml}<div class="space-y-3 pt-4">${recommendationsHtml}</div>`;
+        }
+    </script>

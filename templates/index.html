@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        음악 추천 챗봇
+    </title>
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Inter) 로드 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 기본 폰트 및 스크롤바 스타일링 */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* 커스텀 스크롤바 (선택 사항) */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+        /* ★★★★★ 추가된 부분: 커스텀 슬라이더 스타일 ★★★★★ */
+        /* Webkit 계열 브라우저 (Chrome, Safari) */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #ffffff;
+            border: 2px solid #4f46e5;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: -7px; /* thumb 위치 보정 */
+        }
+        
+        /* Firefox 브라우저 */
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #ffffff;
+            border: 2px solid #4f46e5;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white antialiased">
+    <!-- 전체 레이아웃 컨테이너 -->
+    <div class="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-900/30">
+        <nav class="absolute top-4 right-4 flex gap-4">
+            <a href="/" class="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg">음악 추천</a>
+            <a href="/flower" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold py-2 px-4 rounded-lg">꽃 추천</a>
+        </nav>
+        <!-- 메인 카드 -->
+        <main class="w-full max-w-2xl bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl shadow-2xl shadow-indigo-500/10 p-8 space-y-8">
+            
+            <!-- 헤더 -->
+            <div class="text-center">
+                <div class="flex items-center justify-center gap-3 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3V4a1 1 0 00-1-1z" />
+                    </svg>
+                    <h1 class="text-3xl font-bold text-slate-100">음악 추천 챗봇</h1>
+                </div>
+                <p class="text-slate-400">당신의 지금 기분이나 상황을 알려주시면, 어울리는 노래를 찾아드릴게요.</p>
+            </div>
+
+            <!-- 입력 섹션 -->
+            <div class="space-y-4">
+                <textarea id="userInput" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-4 text-slate-300 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200 resize-none" placeholder="예) 오늘 헤어져서 너무 슬픈데, 비까지 오네..."></textarea>
+                
+                <!-- ★★★★★ 추가된 부분: 가중치 조절 슬라이더 ★★★★★ -->
+                <div class="space-y-3 pt-2">
+                    <label class="text-sm font-medium text-slate-400">추천 가중치 조절</label>
+                    <div class="flex items-center gap-4">
+                        <span id="emotionLabel" class="font-mono text-sm text-indigo-300 w-20 text-center">감성 40%</span>
+                        <input id="weightSlider" type="range" min="0" max="100" value="60" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                        <span id="contextLabel" class="font-mono text-sm text-indigo-300 w-20 text-center">문맥 60%</span>
+                    </div>
+                </div>
+                <!-- ★★★★★ 추가 끝 ★★★★★ -->
+                
+                <button onclick="getRecommendation()" id="recommendButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center gap-2 disabled:bg-slate-500 disabled:cursor-not-allowed">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <span>음악 추천받기</span>
+                </button>
+            </div>
+            
+            <!-- 로딩 인디케이터 (초기에는 숨김) -->
+            <div id="loadingIndicator" class="hidden flex flex-col items-center justify-center text-center py-8 space-y-3">
+                <svg class="animate-spin h-8 w-8 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-slate-400">당신의 감정을 분석하고 있어요...</p>
+            </div>
+
+            <!-- 결과 표시 섹션 -->
+            <div id="results" class="space-y-6">
+                <!-- 결과가 여기에 동적으로 추가됩니다. -->
+            </div>
+
+        </main>
+        
+        <!-- 푸터 -->
+        <footer class="mt-8 text-center text-slate-500 text-sm">
+            <p>Powered by AI. Created with Hugging Face & Flask.</p>
+        </footer>
+    </div>
+    <script>
+        const userInput = document.getElementById('userInput');
+        const recommendButton = document.getElementById('recommendButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultsDiv = document.getElementById('results');
+
+        // ★★★★★ 추가된 부분: 슬라이더 요소 가져오기 ★★★★★
+        const weightSlider = document.getElementById('weightSlider');
+        const emotionLabel = document.getElementById('emotionLabel');
+        const contextLabel = document.getElementById('contextLabel');
+
+        // ★★★★★ 수정된 부분: 슬라이더 라벨 및 그라데이션 업데이트 함수 ★★★★★
+        function updateSliderAppearance() {
+            // 이제 슬라이더의 value는 '감성'의 비율을 직접 나타냅니다.
+            const emotionWeightPercent = parseInt(weightSlider.value);
+            const contextWeightPercent = 100 - emotionWeightPercent;
+            
+            emotionLabel.textContent = `감성 ${emotionWeightPercent}%`;
+            contextLabel.textContent = `문맥 ${contextWeightPercent}%`;
+
+            emotionLabel.style.opacity = 0.5 + (emotionWeightPercent / 100) * 0.5;
+            contextLabel.style.opacity = 0.5 + (contextWeightPercent / 100) * 0.5;
+
+            const roseColor = '#fb7185'; // rose-400
+            const indigoColor = '#818cf8'; // indigo-400
+            
+            // 그라데이션의 경계선(emotionWeightPercent)이 이제 커서의 위치(value)와 일치합니다.
+            const gradient = `linear-gradient(to right, ${roseColor} ${emotionWeightPercent}%, ${indigoColor} ${emotionWeightPercent}%)`;
+            weightSlider.style.background = gradient;
+            
+            // 커서의 테두리 색상도 현재 위치의 색상과 일치시킵니다.
+            const thumbBorderColor = emotionWeightPercent >= 50 ? roseColor : indigoColor;
+            weightSlider.style.setProperty('--thumb-border-color', thumbBorderColor);
+        }
+
+        weightSlider.addEventListener('input', updateSliderAppearance);
+        document.addEventListener('DOMContentLoaded', updateSliderAppearance);
+        // ★★★★★ 수정 끝 ★★★★★
+
+        async function getRecommendation() {
+            const text = userInput.value.trim();
+            if (!text) { alert('기분이나 상황을 입력해주세요!'); return; }
+
+            // ★★★★★ 수정된 부분: 슬라이더에서 현재 가중치 값 가져오기 ★★★★★
+            const emotionWeight = weightSlider.value / 100;
+            const contextWeight = 1 - emotionWeight;
+            // ★★★★★ 수정 끝 ★★★★★
+
+            recommendButton.disabled = true;
+            recommendButton.textContent = '분석 중...';
+            resultsDiv.innerHTML = '';
+            loadingIndicator.classList.remove('hidden');
+
+            try {
+                // ★★★★★ 수정된 부분: API 요청에 가중치 값 포함시키기 ★★★★★
+                const response = await fetch('/recommend_music', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        text: text,
+                        emotion_weight: emotionWeight,
+                        context_weight: contextWeight
+                    })
+                });
+                // ★★★★★ 수정 끝 ★★★★★
+
+                if (!response.ok) { throw new Error(`서버 오류: ${response.statusText}`); }
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="text-red-300 p-4 rounded-lg text-center"><p>오류가 발생했습니다. 잠시 후 다시 시도해주세요.</p></div>`;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                recommendButton.disabled = false;
+                recommendButton.textContent = '음악 추천받기';
+            }
+        }
+        
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                getRecommendation();
+            }
+        });
+
+        function displayResults(data) {
+            if (data.error) {
+                resultsDiv.innerHTML = `<p class="text-center text-red-400">${data.error}</p>`;
+                return;
+            }
+            const emotionHtml = `<div class="text-center"><p class="text-slate-400 text-sm mb-1">분석된 감정</p><span class="bg-indigo-500/20 text-indigo-300 text-md font-medium px-4 py-1 rounded-full">${data.emotion}</span></div>`;
+            
+            let recommendationsHtml = '';
+            if (data.recommendations && data.recommendations.length > 0) {
+                recommendationsHtml = data.recommendations.map(song => {
+                    const youtubeUrl = `https://youtube.com/watch?v=${song.videoId}`;
+                    return `
+                    <div class="bg-slate-700/50 p-4 rounded-lg border border-slate-600 flex items-center gap-4 transition hover:bg-slate-700">
+                        <div class="text-2xl font-bold text-slate-500">${song.rank}</div>
+                        <div class="flex-grow">
+                            <a href="${youtubeUrl}" target="_blank" rel="noopener noreferrer" class="font-semibold text-slate-200 hover:text-indigo-400 transition-colors">${song.title}</a>
+                            <p class="text-sm text-slate-400">${song.artist}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-500">유사도</p>
+                            <p class="font-mono text-indigo-400">${song.score.toFixed(4)}</p>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                recommendationsHtml = `<p class="text-center text-slate-400">아쉽지만, 어울리는 노래를 찾지 못했어요.</p>`;
+            }
+            resultsDiv.innerHTML = `${emotionHtml}<div class="space-y-3 pt-4">${recommendationsHtml}</div>`;
+        }
+    </script>
+</body>
+</html>
